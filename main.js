@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import cors from "cors";
 
-
 const PORT = 3000;
 const app = express();
 
@@ -12,16 +11,14 @@ app.use(cors());
 
 const s3 = `https://s3.marcospaulo.dev.br`
 
+const defaultPath = path.join(process.cwd(), "music")
+
 const normalizeName = (item) => item.replaceAll(" ", "-").toLowerCase();
 
 app.get("/api/albums/:album", (req, res) => {
   const { album } = req.params;
-  const albumPath = path.join(process.cwd(), `music/${album}`);
-
-  const albumCoverPath = path.join(albumPath, album + ".jpg")
-  const albumCoverBuffer = fs.readFileSync(albumCoverPath);
-
-  const albumCover = Buffer.from(albumCoverBuffer).toString("base64");
+  const albumPath = path.join(defaultPath, album);
+  const cover = `${s3}/${normalizeName(album)}/${normalizeName(album)}.jpg`
 
   const albumSongs =  fs.readdirSync(albumPath).filter(file => file.endsWith('.mp3')).map((song) => {
       const songName = song.replace(".mp3", "");
@@ -35,7 +32,7 @@ app.get("/api/albums/:album", (req, res) => {
 
   return res.json({
     name: album,
-    cover: albumCover,
+    cover,
     songs: albumSongs 
   });
 });
@@ -43,13 +40,13 @@ app.get("/api/albums/:album", (req, res) => {
 app.get("/api/albums/:album/:song", (req, res) => {
   const { album, song } = req.params;
 
-  const songPath = path.join(process.cwd(), `music/${album}/${song}.mp3`);
+  const songPath = path.join(defaultPath, album, song + ".mp3");
 
   return res.sendFile(songPath);
 });
 
 app.get("/api/albums", (_req, res) => {
-  const musicPath = path.join(process.cwd(), "music");
+  const musicPath = defaultPath;
 
   const albums = fs.readdirSync(musicPath, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
@@ -68,10 +65,10 @@ app.get("/api/albums", (_req, res) => {
     });
 
   return res.json(albums);
-})
+});
 
 app.use(handler);
 
 app.listen(PORT, () => {
   console.log(`🚀 App running on PORT ${PORT}`)
-})
+});
